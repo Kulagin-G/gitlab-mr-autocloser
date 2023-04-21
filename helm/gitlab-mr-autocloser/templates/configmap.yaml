@@ -1,0 +1,9 @@
+{{- $configMap := toYaml .Values.mrAutocloserConfig -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "gitlab-mr-autocloser.fullname" . }}-config
+data:
+  config.yaml: |
+    config:
+{{ tpl $configMap . | indent 6 }}

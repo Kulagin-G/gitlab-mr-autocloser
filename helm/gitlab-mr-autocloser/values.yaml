@@ -1,0 +1,111 @@
+# Default values for gitlab-mr-autocloser.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+namespace: gitlab-mr-autocloser
+
+image:
+  repository: ""
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+secrets:
+  defaultSecret:
+    enabled: true
+    annotations: {}
+  sealedSecret:
+    enabled: false
+    annotations:
+      sealedsecrets.bitnami.com/cluster-wide: "true"
+  data:
+    GITLAB_API_TOKEN: ""
+
+mrAutocloserConfig:
+  # Keys description you can find in config/config.yaml
+  cronSchedule: "*/1 * * * *"
+  labelHead: "close_if_no_updates_days::"
+  gitlabBaseApiUrl: "https://gitlab.com/api/v4"
+
+  healthcheckOptions:
+    host: 127.0.0.1
+    port: 8090
+    liveness:
+      path: "/healthz/live"
+      gorMaxNum: 100
+    readiness:
+      path: "/healthz/ready"
+      resolveTimeoutSec: 5
+      urlCheck: "gitlab.com"
+
+  defaultOptions:
+    staleMRAfterDays: 14
+    closeMRAfterDays: 7
+
+  projects:
+    - name: "contact-center/integrations/devops/environments/engage-voice/test-pipeline"
+      overrideOptions: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "gitlab-mr-autocloser"
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  runAsNonRoot: true
+  readOnlyRootFilesystem: true
+  runAsUser: 1000
+  runAsGroup: 1000
+
+serviceMonitor:
+  enabled: false
+  annotations: {}
+  promOperatorSelector:
+    prometheus: default
+  interval: 60s
+  scrapeTimeout: 10s
+  path: /metrics
+  port: http
+  relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_node_name]
+      targetLabel: node
+      action: replace
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 1
+  successThreshold: 1
+  failureThreshold: 3
+
+readinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 1
+  successThreshold: 1
+  failureThreshold: 3
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

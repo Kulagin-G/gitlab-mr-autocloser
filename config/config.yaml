@@ -1,26 +1,3 @@
-# gitlab-mr-autocloser
-Simple Go application for closing stale Gitlab Merge Requests via Gitlab API and internal cron scheduler.
-
-# Logic
-There is a common block scheme describing application logic:
-![Screenshot](docs/mr-closer.jpg)
-
-# Local run without compiling
-```bash
-cd ./gitlab-mr-autocloser/src
-go mod tidy
-GITLAB_API_TOKEN=<your_token>;go run main.go -config ../config/config.yaml
-```
-For compiling options see Dockerfile.
-
-# Tests
-There are several unit tests were implemented:
-```bash
-cd ./gitlab-mr-autocloser
-go test ./src/...
-```
-# Config description
-```yaml
 ---
 # Cron expressions.
 cronSchedule: "*/1 * * * *"
@@ -52,10 +29,18 @@ defaultOptions:
   closeMRAfterDays: 7
 
 projects:
-  - name: "my_group/my_sybgroup/my_project"
+  - name: "contact-center/integrations/devops/environments/engage-voice/test-pipeline"
     # you can override defaults
 #    overrideOptions:
 #      staleMRAfterDays: 1
 #      closeMRAfterDays: 5
-
-```
+  - name: "contact-center/integrations/devops/environments/engage-voice/test-pipeline2"
+    # you can override defaults
+#    overrideOptions:
+#      staleMRAfterDays: 1
+#      closeMRAfterDays: 5
+  - name: "contact-center/integrations/devops/environments/engage-voice/test-pipeline3"
+    # you can override defaults
+#    overrideOptions:
+#      staleMRAfterDays: 1
+#      closeMRAfterDays: 5
