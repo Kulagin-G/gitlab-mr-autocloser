@@ -1,7 +1,7 @@
 package types
 
 import (
-	gl "github.com/xanzy/go-gitlab"
+	"github.com/xanzy/go-gitlab"
 )
 
 type MRWithMeta struct {
@@ -9,5 +9,5 @@ type MRWithMeta struct {
 	ProjectName      string
 	StaleMRAfterDays int
 	CloseMRAfterDays int
-	OpenMR           *gl.MergeRequest
+	OpenMR           *gitlab.MergeRequest
 }

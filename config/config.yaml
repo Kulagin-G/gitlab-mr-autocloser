@@ -23,24 +23,14 @@ healthcheckOptions:
     urlCheck: "gitlab.com"
 
 defaultOptions:
-  # All opened MRs will be labeled as stale after staleMRAfterDays since CREATION DATE TIME.
+  # All opened MRs will be labeled as stale after staleMRAfterDays(int) since CREATION DATE TIME.
   staleMRAfterDays: 14
-  # Close stale opened MRs after closeMRAfterDays since LAST UPDATED TIME.
+  # Close stale opened MRs after closeMRAfterDays(int) since LAST UPDATED TIME.
   closeMRAfterDays: 7
 
 projects:
   - name: "contact-center/integrations/devops/environments/engage-voice/test-pipeline"
     # you can override defaults
 #    overrideOptions:
-#      staleMRAfterDays: 1
-#      closeMRAfterDays: 5
-  - name: "contact-center/integrations/devops/environments/engage-voice/test-pipeline2"
-    # you can override defaults
-#    overrideOptions:
-#      staleMRAfterDays: 1
-#      closeMRAfterDays: 5
-  - name: "contact-center/integrations/devops/environments/engage-voice/test-pipeline3"
-    # you can override defaults
-#    overrideOptions:
-#      staleMRAfterDays: 1
-#      closeMRAfterDays: 5
+#      staleMRAfterDays: 10
+#      closeMRAfterDays: 2

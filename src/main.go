@@ -28,7 +28,7 @@ func main() {
 	healthcheck.NewListener(&cfg, &log).StartHandlers()
 
 	task := func() {
-		gitlab.NewMRCloser(&cfg, &log).ManageMergeRequests()
+		_ = gitlab.New(&cfg, &log).ManageMergeRequests()
 	}
 
 	cron.NewAsyncCronJob(&cfg, &log).StartAsyncCronJob(task)

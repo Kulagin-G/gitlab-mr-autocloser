@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	gl "github.com/xanzy/go-gitlab"
+	"github.com/xanzy/go-gitlab"
 	"gitlab-mr-autocloser/src/config"
 	"gitlab-mr-autocloser/src/gitlab/types"
 	"net/http"
@@ -12,12 +12,11 @@ import (
 	"time"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.20.0 --name=MRCloser
 type MRCloser interface {
-	GetOpenMRs(c *gl.Client) *[]types.MRWithMeta
-	SetLabelMR(c *gl.Client, mr *types.MRWithMeta)
-	CloseMRs(c *gl.Client, mrs *[]types.MRWithMeta)
-	ManageMergeRequests()
+	GetOpenMRs(c *gitlab.Client) *[]types.MRWithMeta
+	SetLabelMR(c *gitlab.Client, mr *types.MRWithMeta) (*gitlab.MergeRequest, string, error)
+	CloseMRs(c *gitlab.Client, mrs *[]types.MRWithMeta) []*gitlab.MergeRequest
+	ManageMergeRequests() error
 }
 
 type mrCloser struct {
@@ -25,7 +24,7 @@ type mrCloser struct {
 	log *logrus.Logger
 }
 
-func NewMRCloser(cfg *config.AutoCloserConfig, log *logrus.Logger) MRCloser {
+func New(cfg *config.AutoCloserConfig, log *logrus.Logger) MRCloser {
 	cl := mrCloser{
 		cfg: cfg,
 		log: log,
@@ -33,22 +32,22 @@ func NewMRCloser(cfg *config.AutoCloserConfig, log *logrus.Logger) MRCloser {
 	return &cl
 }
 
-func (mc *mrCloser) GetOpenMRs(c *gl.Client) *[]types.MRWithMeta {
-	var mrsWithMeta []types.MRWithMeta
-	var opts gl.ListProjectMergeRequestsOptions
+func (mc *mrCloser) GetOpenMRs(c *gitlab.Client) *[]types.MRWithMeta {
+	mrsWithMeta := []types.MRWithMeta{}
+	var opts gitlab.ListProjectMergeRequestsOptions
 
 	for _, pr := range mc.cfg.Projects {
 		// If pr.OverrideOptions.StaleMRAfterDays is not set then default is 0
 		if pr.OverrideOptions.StaleMRAfterDays > 0 {
 			createdBefore := time.Now().Add(time.Duration(-pr.OverrideOptions.StaleMRAfterDays) * 24 * time.Hour)
-			opts = gl.ListProjectMergeRequestsOptions{
-				State:         gl.String("opened"),
+			opts = gitlab.ListProjectMergeRequestsOptions{
+				State:         gitlab.String("opened"),
 				CreatedBefore: &createdBefore,
 			}
 		} else {
 			createdBefore := time.Now().Add(time.Duration(-mc.cfg.DefaultOptions.StaleMRAfterDays) * 24 * time.Hour)
-			opts = gl.ListProjectMergeRequestsOptions{
-				State:         gl.String("opened"),
+			opts = gitlab.ListProjectMergeRequestsOptions{
+				State:         gitlab.String("opened"),
 				CreatedBefore: &createdBefore,
 			}
 		}
@@ -63,9 +62,13 @@ func (mc *mrCloser) GetOpenMRs(c *gl.Client) *[]types.MRWithMeta {
 
 			if pr.OverrideOptions.StaleMRAfterDays == 0 {
 				staleMRAfterDays = mc.cfg.DefaultOptions.StaleMRAfterDays
+			} else {
+				staleMRAfterDays = pr.OverrideOptions.StaleMRAfterDays
 			}
 			if pr.OverrideOptions.CloseMRAfterDays == 0 {
 				closeMRAfterDays = mc.cfg.DefaultOptions.CloseMRAfterDays
+			} else {
+				closeMRAfterDays = pr.OverrideOptions.CloseMRAfterDays
 			}
 			for _, m := range mr {
 				mrsWithMeta = append(mrsWithMeta, types.MRWithMeta{
@@ -82,23 +85,25 @@ func (mc *mrCloser) GetOpenMRs(c *gl.Client) *[]types.MRWithMeta {
 	return &mrsWithMeta
 }
 
-func (mc *mrCloser) SetLabelMR(c *gl.Client, mr *types.MRWithMeta) {
+func (mc *mrCloser) SetLabelMR(c *gitlab.Client, mr *types.MRWithMeta) (*gitlab.MergeRequest, string, error) {
 	label := fmt.Sprintf("%s%d", mc.cfg.LabelHead, mr.CloseMRAfterDays)
-	opts := &gl.UpdateMergeRequestOptions{
-		AddLabels: &gl.Labels{
+	opts := &gitlab.UpdateMergeRequestOptions{
+		AddLabels: &gitlab.Labels{
 			label,
 		},
 	}
-	_, _, err := c.MergeRequests.UpdateMergeRequest(mr.ProjectID, mr.OpenMR.IID, opts)
+	m, _, err := c.MergeRequests.UpdateMergeRequest(mr.ProjectID, mr.OpenMR.IID, opts)
 	if err != nil {
 		mc.log.Errorf("Label '%s' was not added to merge request %d: %v", label, mr.OpenMR.IID, err)
-	} else {
-		mc.log.Infof("Label '%s' added to merge request %d", label, mr.OpenMR.IID)
+		return m, label, err
 	}
-
+	mc.log.Infof("Label '%s' added to merge request %d", label, mr.OpenMR.IID)
+	return m, label, nil
 }
 
-func (mc *mrCloser) CloseMRs(c *gl.Client, mrs *[]types.MRWithMeta) {
+func (mc *mrCloser) CloseMRs(c *gitlab.Client, mrs *[]types.MRWithMeta) []*gitlab.MergeRequest {
+	var closedMRs []*gitlab.MergeRequest
+
 	for _, mr := range *mrs {
 		toClose := false
 		for _, l := range mr.OpenMR.Labels {
@@ -108,34 +113,38 @@ func (mc *mrCloser) CloseMRs(c *gl.Client, mrs *[]types.MRWithMeta) {
 		}
 		if toClose {
 			sinceLastUpdatesDays := time.Now().Sub(*mr.OpenMR.UpdatedAt).Hours() / 24
-			mc.log.Infof("MR %d from %s is already stale, no updates: %f days", mr.OpenMR.IID, mr.ProjectName, sinceLastUpdatesDays)
+			mc.log.Infof("MR %d from %s is already stale, no updates: %.2f days, threshold: %.2f days", mr.OpenMR.IID, mr.ProjectName, sinceLastUpdatesDays, float64(mr.CloseMRAfterDays))
 
 			if sinceLastUpdatesDays > float64(mr.CloseMRAfterDays) {
-				opts := &gl.UpdateMergeRequestOptions{
-					StateEvent: gl.String("close"),
+				opts := &gitlab.UpdateMergeRequestOptions{
+					StateEvent: gitlab.String("close"),
 				}
 				_, _, err := c.MergeRequests.UpdateMergeRequest(mr.ProjectID, mr.OpenMR.IID, opts)
 				if err != nil {
 					mc.log.Errorf("Merge request %s was not closed: %v", mr.OpenMR.WebURL, err)
 				} else {
 					mc.log.Infof("Merge request %s has been closed!", mr.OpenMR.WebURL)
+					closedMRs = append(closedMRs, mr.OpenMR)
 				}
+			} else {
+				mc.log.Infof("MR %d is not ready to close, will be ready in %.2f days.", mr.OpenMR.IID, float64(mr.CloseMRAfterDays)-sinceLastUpdatesDays)
 			}
 		} else {
 			mc.log.Infof("Found a stale MR %d in %s!", mr.OpenMR.IID, mr.ProjectName)
-			mc.SetLabelMR(c, &mr)
+			_, _, _ = mc.SetLabelMR(c, &mr)
 		}
 	}
+	return closedMRs
 }
 
-func (mc *mrCloser) ManageMergeRequests() {
+func (mc *mrCloser) ManageMergeRequests() error {
 	mc.log.Info("Starting CRON task...")
 
-	client, err := gl.NewClient(mc.cfg.GitlabApiToken,
-		gl.WithBaseURL(mc.cfg.GitlabBaseApiUrl),
-		gl.WithCustomRetryMax(5),
-		gl.WithCustomLogger(mc.log),
-		gl.WithCustomRetry(func(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	client, err := gitlab.NewClient(mc.cfg.GitlabApiToken,
+		gitlab.WithBaseURL(mc.cfg.GitlabBaseApiUrl),
+		gitlab.WithCustomRetryMax(5),
+		gitlab.WithCustomLogger(mc.log),
+		gitlab.WithCustomRetry(func(ctx context.Context, resp *http.Response, err error) (bool, error) {
 			if resp != nil && (resp.StatusCode == 500 || resp.StatusCode == 503) {
 				return true, nil
 			}
@@ -145,8 +154,10 @@ func (mc *mrCloser) ManageMergeRequests() {
 
 	if err != nil {
 		mc.log.Errorf("Error occured during Gitlab client creation: %v\n", err)
+		return err
 	} else {
 		openMRs := mc.GetOpenMRs(client)
-		mc.CloseMRs(client, openMRs)
+		_ = mc.CloseMRs(client, openMRs)
 	}
+	return nil
 }
