@@ -6,12 +6,6 @@ import (
 )
 
 func LoadConfig(path string, log *logrus.Logger) *AutoCloserConfig {
-	// Workaround for *_test.go from packages with init()
-	// As you see it supports only 1-level nested project structure.
-	if path == "" {
-		path = "../../config/config.yaml"
-	}
-
 	viper.SetConfigFile(path)
 	viper.SetConfigType("yaml")
 	viper.SetEnvPrefix("gitlab")
@@ -35,5 +29,6 @@ func LoadConfig(path string, log *logrus.Logger) *AutoCloserConfig {
 	if err != nil {
 		log.Fatalf("Unable to unmarshal AutoCloserConfig struct, %v", err)
 	}
+
 	return &cfg
 }

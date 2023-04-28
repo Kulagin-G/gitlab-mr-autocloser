@@ -9,8 +9,7 @@ import (
 )
 
 func TestGoroutineHealthcheckHandler(t *testing.T) {
-
-	req, err := http.NewRequest("GET", "/healthz/liveTest", nil)
+	req, err := http.NewRequest(http.MethodGet, "/healthz/liveTest", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +43,7 @@ func TestGoroutineHealthcheckHandler(t *testing.T) {
 }
 
 func TestDnsHealthcheckHandler(t *testing.T) {
-	req, err := http.NewRequest("GET", "/healthz/readyTest", nil)
+	req, err := http.NewRequest(http.MethodGet, "/healthz/readyTest", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +53,7 @@ func TestDnsHealthcheckHandler(t *testing.T) {
 			Readiness: config.Readiness{
 				Path:              "/healthz/readyTest",
 				ResolveTimeoutSec: 5,
-				UrlCheck:          "gitlab.com",
+				URLCheck:          "gitlab.com",
 			},
 		},
 	}
@@ -63,7 +62,7 @@ func TestDnsHealthcheckHandler(t *testing.T) {
 	h := NewListener(cfg, log)
 
 	rr := httptest.NewRecorder()
-	http.HandlerFunc(h.DnsHealthcheckHandler).ServeHTTP(rr, req)
+	http.HandlerFunc(h.DNShealthcheckHandler).ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",

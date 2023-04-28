@@ -4,13 +4,13 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"gitlab-mr-autocloser/src/config"
-	"os"
 	"sync"
 	"testing"
 )
 
 func TestCronJob_StartAsyncCronJob(t *testing.T) {
-	os.Setenv("GITLAB_API_TOKEN", "def456")
+	t.Setenv("GITLAB_API_TOKEN", "def456")
+
 	log := logrus.New()
 	cfg := *config.LoadConfig("../../config/config.yaml", log)
 
@@ -19,11 +19,13 @@ func TestCronJob_StartAsyncCronJob(t *testing.T) {
 	cj := NewAsyncCronJob(&cfg, log)
 
 	var wg sync.WaitGroup
+
 	wg.Add(1)
 
 	counter := 0
 	f := func() {
 		counter++
+
 		wg.Done()
 	}
 

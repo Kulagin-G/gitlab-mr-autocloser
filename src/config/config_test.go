@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"github.com/sirupsen/logrus"
 	"os"
 	"reflect"
@@ -10,7 +9,7 @@ import (
 
 func TestLoadConfig(t *testing.T) {
 	t.Run("should load config from file and env variables", func(t *testing.T) {
-		os.Setenv("GITLAB_API_TOKEN", "def456")
+		t.Setenv("GITLAB_API_TOKEN", "def456")
 
 		tempDir, err := os.MkdirTemp("", "config-test-*")
 		if err != nil {
@@ -31,7 +30,7 @@ func TestLoadConfig(t *testing.T) {
 		}
 
 		fn := tempFile.Name()
-		fmt.Println(fn)
+		t.Logf("Temp file: %s", fn)
 
 		log := logrus.New()
 		config := LoadConfig(tempFile.Name(), log)
@@ -44,6 +43,5 @@ func TestLoadConfig(t *testing.T) {
 		if !reflect.DeepEqual(config, expected) {
 			t.Errorf("Expected config to be %v, but got %v", expected, config)
 		}
-
 	})
 }

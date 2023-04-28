@@ -25,7 +25,7 @@ type Liveness struct {
 type Readiness struct {
 	Path              string `yaml:"path"`
 	ResolveTimeoutSec int    `yaml:"resolveTimeoutSec"`
-	UrlCheck          string `yaml:"urlCheck"`
+	URLCheck          string `yaml:"urlCheck"`
 }
 
 type DefaultOptions struct {

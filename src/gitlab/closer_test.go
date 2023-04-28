@@ -58,7 +58,6 @@ func TestNew(t *testing.T) {
 	if !reflect.DeepEqual(&want, nmc) {
 		t.Errorf("Labels.UpdateLabel returned %+v, want %+v", nmc, &want)
 	}
-
 }
 
 func TestGetOpenMRsNil(t *testing.T) {

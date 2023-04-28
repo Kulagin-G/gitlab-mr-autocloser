@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type CronJob interface {
+type AsyncCronJob interface {
 	StartAsyncCronJob(f func())
 }
 
@@ -16,7 +16,7 @@ type cronJob struct {
 	log *logrus.Logger
 }
 
-func NewAsyncCronJob(cfg *config.AutoCloserConfig, log *logrus.Logger) CronJob {
+func NewAsyncCronJob(cfg *config.AutoCloserConfig, log *logrus.Logger) AsyncCronJob {
 	j := cronJob{
 		cfg: cfg,
 		log: log,
@@ -27,8 +27,10 @@ func NewAsyncCronJob(cfg *config.AutoCloserConfig, log *logrus.Logger) CronJob {
 
 func (cj *cronJob) StartAsyncCronJob(f func()) {
 	cj.log.Info("Creating CRON task...")
+
 	s := gocron.NewScheduler(time.UTC)
 	_, err := s.Cron(cj.cfg.CronSchedule).Do(f)
+
 	if err != nil {
 		cj.log.Errorf("CRON task was not created: %s\n", err)
 	} else {
