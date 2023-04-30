@@ -4,6 +4,7 @@ metadata:
   name: {{ include "gitlab-mr-autocloser.fullname" . }}
   labels:
     {{- include "gitlab-mr-autocloser.labels" . | nindent 4 }}
+  namespace: {{ .Values.namespace }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -32,19 +33,23 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: http
+            - name: health
               containerPort: {{ .Values.mrAutocloserConfig.healthcheckOptions.port }}
               protocol: TCP
+          command: [ "./mr-autocloser" ]
+          args: ["-config=./config/config.yaml"]
           livenessProbe:
           {{- toYaml .Values.livenessProbe | nindent 12 }}
             httpGet:
               path: {{ .Values.mrAutocloserConfig.healthcheckOptions.liveness.path }}
-              port: http
+              port: health
+              scheme: HTTP
           readinessProbe:
           {{- toYaml .Values.readinessProbe | nindent 12 }}
             httpGet:
               path: {{ .Values.mrAutocloserConfig.healthcheckOptions.readiness.path }}
-              port: http
+              port: health
+              scheme: HTTP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
@@ -56,7 +61,7 @@ spec:
                   optional: false
           volumeMounts:
             - name: config-volume
-              mountPath: /mr-autocloser/config/
+              mountPath: /go/config
       volumes:
         - name: config-volume
           configMap:

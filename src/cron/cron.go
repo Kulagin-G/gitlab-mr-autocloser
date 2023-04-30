@@ -26,7 +26,7 @@ func NewAsyncCronJob(cfg *config.AutoCloserConfig, log *logrus.Logger) AsyncCron
 }
 
 func (cj *cronJob) StartAsyncCronJob(f func()) {
-	cj.log.Info("Creating CRON task...")
+	cj.log.Infof("Creating CRON task with schedule %s", cj.cfg.CronSchedule)
 
 	s := gocron.NewScheduler(time.UTC)
 	_, err := s.Cron(cj.cfg.CronSchedule).Do(f)

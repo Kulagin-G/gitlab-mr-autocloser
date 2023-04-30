@@ -34,7 +34,7 @@ mrAutocloserConfig:
   gitlabBaseApiUrl: "https://gitlab.com/api/v4"
 
   healthcheckOptions:
-    host: 127.0.0.1
+    host: 0.0.0.0
     port: 8090
     liveness:
       path: "/healthz/live"
@@ -50,7 +50,7 @@ mrAutocloserConfig:
 
   projects:
     - name: "contact-center/integrations/devops/environments/engage-voice/test-pipeline"
-      overrideOptions: []
+      overrideOptions: {}
 
 serviceAccount:
   create: true
@@ -67,20 +67,6 @@ securityContext:
   readOnlyRootFilesystem: true
   runAsUser: 1000
   runAsGroup: 1000
-
-serviceMonitor:
-  enabled: false
-  annotations: {}
-  promOperatorSelector:
-    prometheus: default
-  interval: 60s
-  scrapeTimeout: 10s
-  path: /metrics
-  port: http
-  relabelings:
-    - sourceLabels: [__meta_kubernetes_pod_node_name]
-      targetLabel: node
-      action: replace
 
 resources:
   limits:
