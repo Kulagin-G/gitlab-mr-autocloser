@@ -6,17 +6,19 @@ ENV CGO_ENABLED=0 \
     GIT_TERMINAL_PROMPT=1 \
     GO111MODULE=on
 
-COPY src ${GOPATH}/mr-autocleaner/src
-COPY go.mod ${GOPATH}/mr-autocleaner/
-COPY go.sum ${GOPATH}/mr-autocleaner/
-COPY config ${GOPATH}/mr-autocleaner/
-WORKDIR ${GOPATH}/mr-autocleaner
+COPY src ${GOPATH}/mr-autocloser/src
+COPY go.mod ${GOPATH}/mr-autocloser/
+COPY go.sum ${GOPATH}/mr-autocloser/
+COPY config ${GOPATH}/mr-autocloser/
+WORKDIR ${GOPATH}/mr-autocloser
 RUN go mod tidy
-RUN go build -ldflags="-s -w" -o mr-autocleaner ./src/
+RUN go build -ldflags="-s -w" -o mr-autocloser ./src/
 
 FROM scratch
-COPY --from=builder go/mr-autocleaner /
+COPY --from=builder go/mr-autocloser/mr-autocloser /go/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-WORKDIR /
-ENTRYPOINT ["/mr-autocleaner"]
+WORKDIR /go
+
+ENTRYPOINT ["./mr-autocloser"]
+CMD ["-config", "config.yaml"]
