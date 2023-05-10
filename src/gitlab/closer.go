@@ -45,21 +45,33 @@ func (mc *mrCloser) GetOpenMRs(c *gitlab.Client) *[]types.MRWithMeta {
 			opts = gitlab.ListProjectMergeRequestsOptions{
 				State:         gitlab.String("opened"),
 				CreatedBefore: &createdBefore,
+				ListOptions: gitlab.ListOptions{
+					PerPage: 20,
+					Page:    1,
+				},
 			}
 		} else {
 			createdBefore := time.Now().Add(time.Duration(-mc.cfg.DefaultOptions.StaleMRAfterDays) * 24 * time.Hour)
 			opts = gitlab.ListProjectMergeRequestsOptions{
 				State:         gitlab.String("opened"),
 				CreatedBefore: &createdBefore,
+				ListOptions: gitlab.ListOptions{
+					PerPage: 20,
+					Page:    1,
+				},
 			}
 		}
 
 		mc.log.Infof("Checking %s project...", pr.Name)
-		mr, _, err := c.MergeRequests.ListProjectMergeRequests(pr.Name, &opts)
 
-		if err != nil {
-			mc.log.Errorf("Can't fetch MRs from %s project: %v", pr.Name, err)
-		} else {
+		for {
+			mr, resp, err := c.MergeRequests.ListProjectMergeRequests(pr.Name, &opts)
+
+			if err != nil {
+				mc.log.Errorf("Can't fetch MRs from %s project: %v", pr.Name, err)
+				break
+			}
+
 			var staleMRAfterDays, closeMRAfterDays int
 
 			if pr.OverrideOptions.StaleMRAfterDays == 0 {
@@ -67,11 +79,13 @@ func (mc *mrCloser) GetOpenMRs(c *gitlab.Client) *[]types.MRWithMeta {
 			} else {
 				staleMRAfterDays = pr.OverrideOptions.StaleMRAfterDays
 			}
+
 			if pr.OverrideOptions.CloseMRAfterDays == 0 {
 				closeMRAfterDays = mc.cfg.DefaultOptions.CloseMRAfterDays
 			} else {
 				closeMRAfterDays = pr.OverrideOptions.CloseMRAfterDays
 			}
+
 			for _, m := range mr {
 				mrsWithMeta = append(mrsWithMeta, types.MRWithMeta{
 					ProjectID:        m.ProjectID,
@@ -81,6 +95,13 @@ func (mc *mrCloser) GetOpenMRs(c *gitlab.Client) *[]types.MRWithMeta {
 					CloseMRAfterDays: closeMRAfterDays,
 				})
 			}
+
+			if resp.NextPage == 0 {
+				break
+			}
+
+			mc.log.Infof("Going to the next page: %v", resp.NextPage)
+			opts.Page = resp.NextPage
 		}
 	}
 
